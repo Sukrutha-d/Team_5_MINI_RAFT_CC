@@ -1,0 +1,37 @@
+services:
+
+  replica1:
+    build:
+      context: ./replica1
+      dockerfile: ../gateway/Dockerfile
+    container_name: replica1
+    ports:
+      - "5001:5000"
+    environment:
+      - REPLICA_ID=replica1
+      - PORT=5000
+      - PEERS=http://replica2:5000,http://replica3:5000
+
+  replica2:
+    build:
+      context: ./replica2
+      dockerfile: ../gateway/Dockerfile
+    container_name: replica2
+    ports:
+      - "5002:5000"
+    environment:
+      - REPLICA_ID=replica2
+      - PORT=5000
+      - PEERS=http://replica1:5000,http://replica3:5000
+
+  replica3:
+    build:
+      context: ./replica3
+      dockerfile: ../gateway/Dockerfile
+    container_name: replica3
+    ports:
+      - "5003:5000"
+    environment:
+      - REPLICA_ID=replica3
+      - PORT=5000
+      - PEERS=http://replica1:5000,http://replica2:5000
