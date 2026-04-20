@@ -42,37 +42,56 @@ services:
     container_name: replica1
     ports:
       - "5001:5000"
+    volumes:
+      - ./replica1:/app
+      - /app/node_modules
     environment:
       - REPLICA_ID=replica1
       - PORT=5000
       - PEERS=http://replica2:5000,http://replica3:5000
+      - GATEWAY_URL=http://gateway:4000
+    command: npm run dev
 
   replica2:
     build: ./replica2
     container_name: replica2
     ports:
       - "5002:5000"
+    volumes:
+      - ./replica2:/app
+      - /app/node_modules
     environment:
       - REPLICA_ID=replica2
       - PORT=5000
       - PEERS=http://replica1:5000,http://replica3:5000
+      - GATEWAY_URL=http://gateway:4000
+    command: npm run dev
 
   replica3:
     build: ./replica3
     container_name: replica3
     ports:
       - "5003:5000"
+    volumes:
+      - ./replica3:/app
+      - /app/node_modules
     environment:
       - REPLICA_ID=replica3
       - PORT=5000
       - PEERS=http://replica1:5000,http://replica2:5000
+      - GATEWAY_URL=http://gateway:4000
+    command: npm run dev
 
-  # 👇 ADD THIS HERE
   gateway:
     build: ./gateway
     container_name: gateway
     ports:
       - "4000:4000"
+    volumes:
+      - ./gateway:/app
+      - ./Frontend:/app/Frontend
+      - /app/node_modules
+    command: npm run dev
     depends_on:
       - replica1
       - replica2

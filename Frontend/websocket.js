@@ -1,8 +1,8 @@
 let socket;
-
 function connectSocket(){
-
- socket = new WebSocket("ws://localhost:4000");
+  // Automatically connect to the host that served the page
+  const host = window.location.hostname || "localhost";
+  socket = new WebSocket(`ws://${host}:4000`);
 
  socket.onopen = () => {
     console.log("Connected to gateway");

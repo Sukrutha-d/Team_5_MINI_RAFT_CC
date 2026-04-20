@@ -2,6 +2,11 @@
   "dependencies": {
     "axios": "^1.15.0",
     "body-parser": "^2.2.2",
-    "express": "^5.2.1"
+    "express": "^5.2.1",
+    "nodemon": "^3.0.1"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
   }
 }

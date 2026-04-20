@@ -27,62 +27,93 @@ const replication = new Replication(state, logManager)
 // Start election timer
 election.startElectionTimer()
 
+// Provide log access to election for vote requests
+state.logManager = logManager
+
 /* =========================
    RequestVote RPC
 ========================= */
 
 app.post("/requestVote", (req, res) => {
 
-  const { term, candidateId } = req.body
+  const { term, candidateId, lastLogIndex, lastLogTerm } = req.body
 
+  // 1. Reply false if term < currentTerm
   if (term < state.currentTerm) {
-    return res.json({ voteGranted: false })
+    return res.json({ voteGranted: false, term: state.currentTerm })
   }
 
-  if (!state.votedFor || state.votedFor === candidateId) {
+  // If candidate's term is higher, update our term and step down
+  if (term > state.currentTerm) {
+    state.currentTerm = term
+    state.state = "follower"
+    state.votedFor = null
+  }
 
+  // 2. If votedFor is null or candidateId, and candidate's log is at least as up-to-date as receiver's log, grant vote
+  const myLastLogIndex = logManager.getLastIndex()
+  const myLastLogTerm = logManager.getLastTerm()
+
+  const logUpToDate = (lastLogTerm > myLastLogTerm) || 
+                   (lastLogTerm === myLastLogTerm && lastLogIndex >= myLastLogIndex)
+
+  if ((!state.votedFor || state.votedFor === candidateId) && logUpToDate) {
     state.votedFor = candidateId
     state.currentTerm = term
-
     election.startElectionTimer()
 
-    console.log(`${state.id} voted for ${candidateId}`)
-
-    return res.json({ voteGranted: true })
+    console.log(`${state.id} voted for ${candidateId} in term ${term}`)
+    return res.json({ voteGranted: true, term: state.currentTerm })
   }
 
-  res.json({ voteGranted: false })
+  res.json({ voteGranted: false, term: state.currentTerm })
 })
 
 /* =========================
    AppendEntries RPC
-   (Heartbeat + Log Replication)
 ========================= */
 
 app.post("/appendEntries", (req, res) => {
 
-  const { term, leaderId, entries } = req.body
+  const { term, leaderId, entries, commitIndex } = req.body
 
   if (term < state.currentTerm) {
-    return res.json({ success: false })
+    return res.json({ success: false, term: state.currentTerm })
   }
 
+  // If term >= currentTerm, the sender is a valid leader
   state.state = "follower"
-  state.currentTerm = term
+  if (term > state.currentTerm) {
+    state.currentTerm = term
+    state.votedFor = null
+  }
   state.leaderId = leaderId
+
+  // Reset election timer
+  election.startElectionTimer()
 
   // 🔥 Handle log replication
   if (entries && entries.length > 0) {
     logManager.appendEntries(entries)
+    console.log(`${state.id} replicated logs from ${leaderId}`)
   }
 
-  election.startElectionTimer()
+  // Update commit index
+  if (commitIndex > logManager.commitIndex) {
+    logManager.commitIndex = Math.min(commitIndex, logManager.getLastIndex())
+  }
 
-  if (entries && entries.length > 0) {
-  console.log(`${state.id} replicated logs from ${leaderId}`)
-}decodeURI
+  res.json({ success: true, term: state.currentTerm })
+})
 
-  res.json({ success: true })
+/* =========================
+   Sync-Log RPC (Catch-Up)
+========================= */
+
+app.get("/sync-log", (req, res) => {
+  const fromIndex = parseInt(req.query.from) || 0
+  const committedEntries = logManager.log.slice(fromIndex)
+  res.json(committedEntries)
 })
 
 /* =========================

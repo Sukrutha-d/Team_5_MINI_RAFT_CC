@@ -72,6 +72,7 @@ const express = require("express")
 const cors = require("cors")
 const WebSocket = require("ws")
 const axios = require("axios")
+const path = require("path")
 
 const { detectLeader, getLeader } = require("./leader")
 const broadcast = require("./broadcast")
@@ -80,6 +81,9 @@ const app = express()
 
 app.use(cors())
 app.use(express.json())
+
+// Serve static frontend files
+app.use(express.static(path.join(__dirname, "Frontend")))
 
 const PORT = 4000
 
@@ -128,18 +132,17 @@ wss.on("connection", ws => {
 
         console.log("Forwarding to leader:", leader)
 
-        /* 🔥 IMPORTANT FIX */
+        /* Send to leader command endpoint */
         await axios.post(`${leader}/command`, data)
 
-        /* Broadcast to all connected clients */
-        broadcast(wss, data)
-
+        /* 
+           ❌ REMOVED: immediate broadcast
+           The leader will broadcast to /broadcast once committed.
+        */
       }
 
     } catch (err) {
-
       console.log("Error handling message:", err.message)
-
     }
 
   })
@@ -148,6 +151,19 @@ wss.on("connection", ws => {
     console.log("Client disconnected")
   })
 
+})
+
+/* =========================
+   Broadcast Endpoint (from Leader)
+========================= */
+
+app.post("/broadcast", (req, res) => {
+  try {
+    broadcast(wss, req.body)
+    res.json({ success: true })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
 })
 
 /* =========================
@@ -183,6 +199,6 @@ app.post("/command", async (req, res) => {
    Health check
 ========================= */
 
-app.get("/", (req, res) => {
+app.get("/health", (req, res) => {
   res.send("Gateway is running")
 })
