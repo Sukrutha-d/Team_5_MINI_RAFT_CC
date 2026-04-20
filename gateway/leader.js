@@ -5,24 +5,34 @@ let currentLeader = null
 
 async function detectLeader() {
 
+  let found = false
+
   for (let replica of replicas) {
 
     try {
 
       const res = await axios.get(`${replica}/state`)
 
+      console.log("Checking:", replica, res.data)
+
       if (res.data.state === "leader") {
 
         currentLeader = replica
-        console.log("Leader detected:", replica)
+        found = true
 
-        return
+        console.log("Leader detected:", replica)
+        break
       }
 
-    } catch (err) {}
-
+    } catch (err) {
+      console.log("Replica unreachable:", replica)
+    }
   }
 
+  // 🔥 IMPORTANT: reset if no leader found
+  if (!found) {
+    currentLeader = null
+  }
 }
 
 function getLeader() {

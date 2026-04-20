@@ -117,7 +117,7 @@ wss.on("connection", ws => {
 
       const data = JSON.parse(message)
 
-      if (data.type === "draw") {
+      if (data.type === "stroke") {
 
         const leader = getLeader()
 

@@ -2,7 +2,7 @@ let socket;
 
 function connectSocket(){
 
- socket = new WebSocket("ws://localhost:8080");
+ socket = new WebSocket("ws://localhost:4000");
 
  socket.onopen = () => {
     console.log("Connected to gateway");

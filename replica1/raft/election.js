@@ -8,7 +8,8 @@ class Election {
 
   startElectionTimer() {
 
-    const timeout = Math.floor(Math.random() * 300) + 500
+    // 🔥 Increased timeout for stability
+    const timeout = Math.floor(Math.random() * 1000) + 1500
 
     clearTimeout(this.state.electionTimer)
 
@@ -26,23 +27,32 @@ class Election {
 
     console.log(`${this.state.id} starting election for term ${this.state.currentTerm}`)
 
-    for (let peer of this.state.peers) {
-      try {
+    try {
 
-        const res = await axios.post(`${peer}/requestVote`, {
+      // 🔥 PARALLEL REQUESTS (KEY FIX)
+      const promises = this.state.peers.map(peer => {
+        return axios.post(`${peer}/requestVote`, {
           term: this.state.currentTerm,
           candidateId: this.state.id
+        }).catch(err => {
+          console.log(`Peer unreachable: ${peer} → ${err.message}`)
+          return null
         })
+      })
 
-        if (res.data.voteGranted) {
+      const results = await Promise.all(promises)
+
+      for (let res of results) {
+        if (res && res.data.voteGranted) {
           this.state.votesReceived++
         }
-
-      } catch (err) {
-        console.log("Peer unreachable")
       }
+
+    } catch (err) {
+      console.log("Election error:", err.message)
     }
 
+    // 🔥 Majority check
     if (this.state.votesReceived > this.state.peers.length / 2) {
       this.becomeLeader()
     } else {
@@ -57,6 +67,9 @@ class Election {
 
     console.log(`${this.state.id} became LEADER`)
 
+    // 🔥 Clear old heartbeat (important)
+    clearInterval(this.state.heartbeatTimer)
+
     this.startHeartbeat()
   }
 
@@ -64,16 +77,18 @@ class Election {
 
     this.state.heartbeatTimer = setInterval(() => {
 
-      for (let peer of this.state.peers) {
+      this.state.peers.forEach(peer => {
 
         axios.post(`${peer}/appendEntries`, {
           term: this.state.currentTerm,
           leaderId: this.state.id
-        }).catch(() => {})
+        }).catch(err => {
+          console.log(`Heartbeat failed to ${peer}`)
+        })
 
-      }
+      })
 
-    }, 150)
+    }, 300) // slightly slower for stability
   }
 }
 
